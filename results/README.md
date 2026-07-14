@@ -22,3 +22,14 @@ Produced on the server by `scripts/run_olmo_trajectory.sh`:
 | `figures/fig_variance_trajectory.png` | Paper Figure 19: one line per **trait**, shared variance ρ across stages |
 | `figures/fig_variance_by_persona.png` | Companion view: one line per **persona**, averaged over traits (`scripts/variance_by_persona.py`) |
 | `figures/*.png` | The other trajectory plots (transfer matrices, alignment, subspace overlap, summary) |
+
+## `fewshot_pilot/` — few-shot ICL base-extraction pilot (design B, feasibility)
+
+Produced by `scripts/run_fewshot_pilot.sh` (pipeline `f1` → `f2`). Feasibility check for
+whether the OLMo-2 **base** model can express persona+trait behavior given `n` in-context
+demonstrations from the instruct model (no activation extraction yet).
+
+| File | What it is |
+|---|---|
+| `generations.md` | Human-readable, grouped by (persona, trait): base completions across n∈{0,1,3,5,7}, matched vs mismatched-persona demos |
+| `base_generations.jsonl` | Machine-readable raw generations (one row per persona×trait×n×condition×held-out question) |
