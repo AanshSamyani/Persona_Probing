@@ -26,8 +26,14 @@ python -m venv /workspace/venv && source /workspace/venv/bin/activate && pip ins
 git clone https://github.com/safety-research/assistant-axis.git assistant-axis-ref
 pip install -e assistant-axis-ref/ && pip install -e . && pip install -U "transformers>=4.47"
 export HF_HOME=/workspace/.cache/huggingface HUGGINGFACE_HUB_CACHE=$HF_HOME/hub WANDB_DISABLED=true TOKENIZERS_PARALLELISM=false
+export HF_HUB_DISABLE_XET=1   # OLMo-2 fp32 checkpoints (~29 GB) can crash the hf_xet backend; use classic HTTP
 ```
 To update code between experiments: `git pull origin main`.
+
+**Download gotchas.** OLMo-2 checkpoints are ~29 GB each (fp32). If a download dies with
+`Internal Writer Error: Background writer channel closed`, it's the `hf_xet` backend —
+`export HF_HUB_DISABLE_XET=1` (or `pip uninstall -y hf_xet`) and retry; also check
+`df -h /workspace` for a full disk.
 
 ---
 

@@ -6,10 +6,18 @@ onto another machine. Only code, data, and `results/` travel through GitHub.
 
 ## Prerequisites
 
-- 1 GPU with ≥ 24 GB (OLMo-2-7B is ~14 GB in bf16; forward-pass only).
-- **~150 GB free on `/workspace`** — 7 checkpoints (~14 GB each) + activations.
-  Disk-constrained? See "Stage-by-stage" at the bottom.
+- 1 GPU with ≥ 24 GB (OLMo-2-7B loads to ~14 GB in bf16; forward-pass only).
+- **~230 GB free on `/workspace`** — 7 checkpoints at **~29 GB each** (OLMo-2 ships
+  **fp32** master weights, ~29 GB, not 14 GB — `from_pretrained` downloads fp32 then
+  casts to bf16 in memory) + activations. Disk-constrained? See "Stage-by-stage" at the bottom.
 - Python 3.10+.
+
+> **Downloads: disable the Xet backend.** OLMo-2 checkpoints are large single files and
+> HuggingFace's `hf_xet` backend can die on them with
+> `RuntimeError: ... Internal Writer Error: Background writer channel closed`.
+> Before any step that downloads weights: `export HF_HUB_DISABLE_XET=1` (falls back to
+> classic resumable HTTP). If it still fails, `pip uninstall -y hf_xet`. The same error can
+> also mean `/workspace` is full — check `df -h /workspace` first.
 
 ## 0. Clone into /workspace
 
@@ -105,7 +113,7 @@ next (activations are tiny and are what you keep):
 for S in pretrain_1pct pretrain_10pct pretrain_50pct base sft dpo instruct; do
   python pipeline/t1_trajectory_activations.py --stages "$S"
   python pipeline/t2_trajectory_vectors.py     --stages "$S"
-  rm -rf "$HF_HOME/hub"/models--allenai--OLMo-2-1124-7B*   # frees ~14 GB; re-downloads only if re-run
+  rm -rf "$HF_HOME/hub"/models--allenai--OLMo-2-1124-7B*   # frees ~29 GB; re-downloads only if re-run
 done
 python pipeline/t3_trajectory_analysis.py --layer 15
 python pipeline/t4_trajectory_figures.py

@@ -14,6 +14,8 @@ export WANDB_DISABLED="${WANDB_DISABLED:-true}"
 export HF_HOME="${HF_HOME:-/workspace/.cache/huggingface}"
 export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
 export TOKENIZERS_PARALLELISM="${TOKENIZERS_PARALLELISM:-false}"
+# OLMo-2 fp32 checkpoints can crash the hf_xet download backend; use classic HTTP. Override with =0.
+export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
 
 echo "=== f1: instruct-model demos (OLMo-2-1124-7B-Instruct) ==="
 python pipeline/f1_fewshot_demos.py
