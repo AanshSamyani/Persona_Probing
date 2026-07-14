@@ -42,6 +42,9 @@ cp -f "${TDIR}"/*.npy  results/olmo_trajectory/         2>/dev/null || true
 cp -f "${FDIR}"/*.png  results/olmo_trajectory/figures/ 2>/dev/null || true
 python scripts/summarize_trajectory.py
 
+echo "=== [extra] per-persona shared-variance plot (personas as lines, averaged over traits) ==="
+python scripts/variance_by_persona.py
+
 echo ""
 echo "=== DONE. Shareable results are in results/olmo_trajectory/ (safe to git add / commit / push). ==="
 echo "    Heavy artifacts stayed under outputs/ and $HF_HOME (gitignored)."

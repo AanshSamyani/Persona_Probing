@@ -18,4 +18,7 @@ Produced on the server by `scripts/run_olmo_trajectory.sh`:
 | `transfer_*.npy` | The 10×10 persona transfer matrix at each stage |
 | `trajectory_meta.json` | Layer, persona list, trait list, stage order used |
 | `layer_sweep.csv` | Mean shared variance per candidate layer (used to pick the analysis layer) |
-| `figures/*.png` | Plots, incl. `fig_variance_trajectory.png` (= paper Figure 19) |
+| `variance_by_persona.json` | Per-stage, per-persona shared-variance ratio `cos²(v_{c,T}, û_T)` and its mean over traits |
+| `figures/fig_variance_trajectory.png` | Paper Figure 19: one line per **trait**, shared variance ρ across stages |
+| `figures/fig_variance_by_persona.png` | Companion view: one line per **persona**, averaged over traits (`scripts/variance_by_persona.py`) |
+| `figures/*.png` | The other trajectory plots (transfer matrices, alignment, subspace overlap, summary) |
