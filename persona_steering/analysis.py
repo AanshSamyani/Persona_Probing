@@ -1,0 +1,426 @@
+"""Comparison metrics: cosine similarity, transfer matrices, clustering, decomposition,
+and training-trajectory analysis."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+import numpy as np
+import torch
+
+from persona_steering.config import Trait
+from persona_steering.utils import cosine_similarity, log
+
+
+# Functions in this module accept any object with a `.vector` attribute
+# (torch.Tensor) and optional `.persona`, `.trait`, `.layer` attributes.
+# Previously this was the SteeringVector dataclass; the pipeline now uses
+# lightweight shim objects with the same interface.
+
+
+# ---------------------------------------------------------------------------
+# Pairwise vector comparison
+# ---------------------------------------------------------------------------
+
+@dataclass
+class VectorComparison:
+    """Result of comparing two steering vectors."""
+    cosine_sim: float
+    magnitude_ratio: float  # |v2| / |v1|
+    orthogonal_residual: float  # magnitude of component of v2 orthogonal to v1
+    shared_component: torch.Tensor | None = None
+    persona_a: str = ""
+    persona_b: str = ""
+    trait: str = ""
+    layer: int = -1
+
+
+def compare_vectors(v1: Any, v2: Any) -> VectorComparison:
+    """Compare two steering vectors.
+
+    Computes cosine similarity, magnitude ratio, and the size of the
+    component of v2 that is orthogonal to v1.
+    """
+    a = v1.vector.float()
+    b = v2.vector.float()
+
+    cos_sim = cosine_similarity(a, b)
+
+    mag_ratio = b.norm().item() / (a.norm().item() + 1e-10)
+
+    # Project b onto a, compute residual
+    a_unit = a / a.norm()
+    proj = torch.dot(b, a_unit) * a_unit
+    residual = b - proj
+    orth_mag = residual.norm().item()
+
+    return VectorComparison(
+        cosine_sim=cos_sim,
+        magnitude_ratio=mag_ratio,
+        orthogonal_residual=orth_mag,
+        shared_component=proj,
+        persona_a=v1.persona,
+        persona_b=v2.persona,
+        trait=v1.trait.value if hasattr(v1.trait, "value") else str(v1.trait),
+        layer=v1.layer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Transfer matrix
+# ---------------------------------------------------------------------------
+
+def build_transfer_matrix(
+    vectors: dict[str, dict[Trait, dict[int, Any]]],
+    personas: list[str],
+    traits: list[Trait],
+    layer: int,
+) -> np.ndarray:
+    """Build a cosine similarity transfer matrix across personas.
+
+    For each pair of personas, computes the average cosine similarity
+    of their steering vectors across traits.
+
+    Args:
+        vectors: Nested dict (persona -> trait -> layer -> vec object with .vector).
+        personas: List of persona slugs.
+        traits: List of traits to include.
+        layer: Which layer to compare.
+
+    Returns:
+        np.ndarray of shape (n_personas, n_personas) with pairwise sims.
+    """
+    n = len(personas)
+    matrix = np.zeros((n, n))
+
+    for i, pa in enumerate(personas):
+        for j, pb in enumerate(personas):
+            sims = []
+            for trait in traits:
+                va = vectors.get(pa, {}).get(trait, {}).get(layer)
+                vb = vectors.get(pb, {}).get(trait, {}).get(layer)
+                if va is not None and vb is not None:
+                    sims.append(cosine_similarity(va.vector, vb.vector))
+            matrix[i, j] = np.mean(sims) if sims else 0.0
+
+    log.info("Transfer matrix (%d personas, %d traits, layer %d)", n, len(traits), layer)
+    return matrix
+
+
+def build_per_trait_transfer(
+    vectors: dict[str, dict[Trait, dict[int, Any]]],
+    personas: list[str],
+    trait: Trait,
+    layer: int,
+) -> np.ndarray:
+    """Build a per-trait cosine similarity matrix across personas.
+
+    Returns:
+        np.ndarray of shape (n_personas, n_personas).
+    """
+    n = len(personas)
+    matrix = np.zeros((n, n))
+
+    for i, pa in enumerate(personas):
+        for j, pb in enumerate(personas):
+            va = vectors.get(pa, {}).get(trait, {}).get(layer)
+            vb = vectors.get(pb, {}).get(trait, {}).get(layer)
+            if va is not None and vb is not None:
+                matrix[i, j] = cosine_similarity(va.vector, vb.vector)
+
+    return matrix
+
+
+# ---------------------------------------------------------------------------
+# Clustering
+# ---------------------------------------------------------------------------
+
+def cluster_persona_vectors(
+    transfer_matrix: np.ndarray,
+    personas: list[str],
+    n_clusters: int | None = None,
+) -> dict:
+    """Cluster personas based on steering vector similarity.
+
+    Uses agglomerative clustering on the distance matrix derived from the
+    transfer (cosine similarity) matrix.
+
+    Args:
+        transfer_matrix: Cosine similarity matrix (n x n).
+        personas: List of persona slugs (same order as matrix).
+        n_clusters: Number of clusters. If None, uses a distance threshold.
+
+    Returns:
+        Dict with cluster assignments and linkage info.
+    """
+    from scipy.cluster.hierarchy import linkage, fcluster
+    from scipy.spatial.distance import squareform
+
+    # Convert similarity to distance
+    distance_matrix = 1.0 - transfer_matrix
+    np.fill_diagonal(distance_matrix, 0.0)
+    distance_matrix = np.clip(distance_matrix, 0.0, None)
+
+    # Make symmetric (in case of floating point asymmetry)
+    distance_matrix = (distance_matrix + distance_matrix.T) / 2.0
+
+    condensed = squareform(distance_matrix)
+    Z = linkage(condensed, method="average")
+
+    if n_clusters is not None:
+        labels = fcluster(Z, t=n_clusters, criterion="maxclust")
+    else:
+        labels = fcluster(Z, t=0.5, criterion="distance")
+
+    clusters: dict[int, list[str]] = {}
+    for persona, label in zip(personas, labels):
+        clusters.setdefault(int(label), []).append(persona)
+
+    log.info("Clustered %d personas into %d clusters", len(personas), len(clusters))
+
+    return {
+        "labels": {p: int(l) for p, l in zip(personas, labels)},
+        "clusters": clusters,
+        "linkage": Z,
+        "distance_matrix": distance_matrix,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Shared vs persona-specific decomposition
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SharedSpecificDecomposition:
+    """Decomposition of steering vectors into shared and persona-specific components."""
+    shared_direction: torch.Tensor  # unit vector for shared component
+    shared_magnitudes: dict[str, float]  # persona -> magnitude along shared
+    specific_vectors: dict[str, torch.Tensor]  # persona -> residual vector
+    specific_magnitudes: dict[str, float]
+    variance_explained: float  # fraction of total variance in shared direction
+
+
+def decompose_shared_specific(
+    vectors: dict[str, Any],
+) -> SharedSpecificDecomposition:
+    """Decompose steering vectors into shared and persona-specific components.
+
+    Takes vectors for the same trait across personas. Computes the mean
+    direction as the shared component, and persona-specific residuals.
+
+    Args:
+        vectors: Dict mapping persona slug to object with .vector attribute.
+
+    Returns:
+        SharedSpecificDecomposition.
+    """
+    slugs = list(vectors.keys())
+    vecs = torch.stack([vectors[s].vector.float() for s in slugs])
+
+    # Shared direction: mean of unit vectors
+    unit_vecs = vecs / vecs.norm(dim=1, keepdim=True)
+    mean_dir = unit_vecs.mean(dim=0)
+    shared_unit = mean_dir / mean_dir.norm()
+
+    shared_mags = {}
+    specific_vecs = {}
+    specific_mags = {}
+
+    for i, slug in enumerate(slugs):
+        v = vecs[i]
+        proj_mag = torch.dot(v, shared_unit).item()
+        shared_mags[slug] = proj_mag
+        residual = v - proj_mag * shared_unit
+        specific_vecs[slug] = residual
+        specific_mags[slug] = residual.norm().item()
+
+    # Variance explained by shared direction
+    total_mag_sq = sum(vecs[i].norm().item() ** 2 for i in range(len(slugs)))
+    shared_mag_sq = sum(shared_mags[s] ** 2 for s in slugs)
+    variance_explained = shared_mag_sq / (total_mag_sq + 1e-10)
+
+    return SharedSpecificDecomposition(
+        shared_direction=shared_unit,
+        shared_magnitudes=shared_mags,
+        specific_vectors=specific_vecs,
+        specific_magnitudes=specific_mags,
+        variance_explained=variance_explained,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Steering vs inter-persona direction
+# ---------------------------------------------------------------------------
+
+def compare_steering_vs_interpersona(
+    steering_vec: Any,
+    persona_axis: torch.Tensor,
+) -> dict:
+    """Compare a steering direction to the inter-persona axis.
+
+    The inter-persona axis is the direction between two persona's mean
+    activations. This tests whether steering is aligned with, orthogonal
+    to, or opposed to the persona difference.
+
+    Args:
+        steering_vec: Object with .vector attribute (steering vector for a trait).
+        persona_axis: Direction between personas in activation space.
+
+    Returns:
+        Dict with alignment metrics.
+    """
+    s = steering_vec.vector.float()
+    p = persona_axis.float()
+
+    cos = cosine_similarity(s, p)
+
+    s_unit = s / s.norm()
+    p_unit = p / p.norm()
+
+    # Project steering onto persona axis
+    proj_mag = torch.dot(s, p_unit).item()
+    # Orthogonal component
+    orth = s - proj_mag * p_unit
+    orth_mag = orth.norm().item()
+
+    return {
+        "cosine_similarity": cos,
+        "projection_onto_persona_axis": proj_mag,
+        "orthogonal_magnitude": orth_mag,
+        "steering_magnitude": s.norm().item(),
+        "persona_axis_magnitude": p.norm().item(),
+        "alignment_ratio": abs(proj_mag) / (s.norm().item() + 1e-10),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Training trajectory analysis
+# ---------------------------------------------------------------------------
+
+def transfer_matrix_distance(
+    tm1: np.ndarray,
+    tm2: np.ndarray,
+    method: str = "both",
+) -> dict[str, float]:
+    """Measure distance between two transfer matrices.
+
+    Args:
+        tm1, tm2: Square cosine-similarity matrices (same size).
+        method: "frobenius", "spearman", or "both".
+
+    Returns:
+        Dict with distance metrics.
+    """
+    from scipy.stats import spearmanr
+
+    result = {}
+
+    if method in ("frobenius", "both"):
+        result["frobenius"] = float(np.linalg.norm(tm1 - tm2, "fro"))
+
+    if method in ("spearman", "both"):
+        n = tm1.shape[0]
+        idx = np.triu_indices(n, k=1)
+        rho, p_val = spearmanr(tm1[idx], tm2[idx])
+        result["spearman_rho"] = float(rho)
+        result["spearman_p"] = float(p_val)
+
+    return result
+
+
+def vector_alignment_across_stages(
+    vectors_by_stage: dict[str, torch.Tensor],
+) -> dict[str, dict[str, float]]:
+    """Compute pairwise cosine similarities of the same (persona, trait) vector
+    across training stages.
+
+    Args:
+        vectors_by_stage: stage_label -> vector tensor (hidden_dim,)
+
+    Returns:
+        Nested dict: stage_a -> stage_b -> cosine_sim.
+    """
+    stages = sorted(vectors_by_stage.keys())
+    result: dict[str, dict[str, float]] = {}
+
+    for sa in stages:
+        result[sa] = {}
+        for sb in stages:
+            result[sa][sb] = cosine_similarity(
+                vectors_by_stage[sa], vectors_by_stage[sb]
+            )
+
+    return result
+
+
+def subspace_overlap(
+    vectors_a: list[torch.Tensor],
+    vectors_b: list[torch.Tensor],
+    n_components: int = 5,
+) -> dict[str, Any]:
+    """Measure overlap between two sets of vectors via principal angles.
+
+    Computes PCA on each set, then measures the principal angles between
+    the resulting subspaces. Small angles = high overlap.
+
+    Args:
+        vectors_a: List of vectors from stage A (one per persona).
+        vectors_b: List of vectors from stage B (one per persona).
+        n_components: Number of PCA components to compare.
+
+    Returns:
+        Dict with principal angles (radians), mean overlap score (0-1).
+    """
+    from numpy.linalg import svd
+
+    def _pca_basis(vecs: list[torch.Tensor], k: int) -> np.ndarray:
+        mat = torch.stack(vecs).float().numpy()
+        mat -= mat.mean(axis=0, keepdims=True)
+        U, S, Vt = svd(mat, full_matrices=False)
+        return Vt[:min(k, Vt.shape[0])]  # (k, hidden_dim)
+
+    k = min(n_components, len(vectors_a), len(vectors_b))
+    if k < 1:
+        return {"principal_angles_rad": [], "mean_overlap": 0.0}
+
+    basis_a = _pca_basis(vectors_a, k)
+    basis_b = _pca_basis(vectors_b, k)
+
+    # Principal angles via SVD of the cross-product
+    M = basis_a @ basis_b.T  # (k, k)
+    _, sigmas, _ = svd(M)
+    sigmas = np.clip(sigmas, -1.0, 1.0)
+    angles = np.arccos(sigmas)
+
+    return {
+        "principal_angles_rad": angles.tolist(),
+        "mean_overlap": float(np.mean(np.cos(angles) ** 2)),
+    }
+
+
+def cluster_stability(
+    labels_by_stage: dict[str, dict[str, int]],
+) -> dict[str, dict[str, float]]:
+    """Compare cluster assignments across stages using adjusted Rand index.
+
+    Args:
+        labels_by_stage: stage_label -> {persona -> cluster_id}
+
+    Returns:
+        Nested dict: stage_a -> stage_b -> adjusted_rand_index.
+    """
+    from sklearn.metrics import adjusted_rand_score
+
+    stages = sorted(labels_by_stage.keys())
+    personas = sorted(set().union(*[set(v.keys()) for v in labels_by_stage.values()]))
+
+    result: dict[str, dict[str, float]] = {}
+    for sa in stages:
+        result[sa] = {}
+        for sb in stages:
+            labels_a = [labels_by_stage[sa].get(p, -1) for p in personas]
+            labels_b = [labels_by_stage[sb].get(p, -1) for p in personas]
+            result[sa][sb] = float(adjusted_rand_score(labels_a, labels_b))
+
+    return result

@@ -1,0 +1,88 @@
+# All generated outputs (vectors, responses, activations, figures, analysis).
+# Everything heavy (weights, activations, vectors) lives here and is NEVER pushed.
+# Small, shareable results (numbers + plots) are copied into results/ instead,
+# which IS tracked (see results/README.md).
+outputs/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model weights and large files
+*.bin
+*.safetensors
+*.pth
+*.ckpt
+*.pt
+
+# HuggingFace / torch caches (kept under /workspace/.cache on the server)
+.cache/
+hf_cache/
+
+# Reference repos
+assistant-axis-ref/
+
+# Environment
+.env
+
+# W&B
+wandb/
+
+# Logs and ephemeral state
+*.log
+logs/
+texput.log
+.vllm_installed
+run_cpu_experiments.sh
+run_experiments.sh
+data/prompts/adversarial/
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.out
+*.toc
+*_preview*.png
+
+# Local manifold-probing scratch (dropped from project)
+maniprobe/
+
+# Claude Code local state / worktrees
+.claude/
+
+# ICML LaTeX: compiled output and template boilerplate (keep .sty/.bst/main.tex/references.bib)
+icml2026/main.pdf
+icml2026/example_paper.*
+icml2026/icml_numpapers.pdf
+
+# Stray screenshots
+Screenshot*.png
