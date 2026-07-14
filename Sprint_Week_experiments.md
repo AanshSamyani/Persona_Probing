@@ -125,6 +125,20 @@ answer honest/assertive as intended? (4) Copying vs conditioning — does `misma
 Context persona (good) or the demo persona (copying)? The n at which quality saturates tells
 us a sensible operating point for the full experiment.
 
+### Pilot findings (2026-07-15)
+- **Feasibility: yes.** The base model produces coherent, on-topic, persona-consistent
+  generations at **n≥3, saturating ~n=5**. n=0 and n=1 are largely degenerate (repetition
+  loops, verbatim demo regurgitation) — partly a greedy-decoding artifact.
+- **But the base COPIES the demos, it doesn't condition on the `Context:` persona.** The
+  mismatch control is decisive and symmetric: `Context:`=farmer + drill_sergeant demos → pure
+  drill sergeant output; `Context:`=drill_sergeant + farmer demos → farmer output. The demos
+  win in both directions; the `Context:` line is nearly inert. And n=0 (Context-only ≈ what
+  base-CAA relies on) barely engages the persona — validating the original confound.
+- **Implication:** few-shot-with-instruct-demos measures the *instruct teacher transferred by
+  copying*, not the base's weights, so it can't serve as a clean base-intrinsic probe as-is.
+  Notably, n=0 + mismatch together are *consistent with* Appendix F (base conditioning is
+  absent-or-borrowed). This motivated **Experiment 3**.
+
 ### Planned follow-ups (the full design-B experiment — not yet run)
 Only pursue if the pilot shows the base model can do the task:
 1. **Extract** mean assistant-turn activations from the base few-shot generations (IV-style),
@@ -143,6 +157,45 @@ Only pursue if the pilot shows the base model can do the task:
 
 ---
 
+## Experiment 3 — In-context persona generalization (base model)  🔬 IN PROGRESS
+
+**Motivation.** The pilot (Exp 2) couldn't separate copying from conditioning because demos
+and target were the *same* persona. This design fixes that: demos are **8 different (seen)
+personas** answering one fixed question; the target is a **held-out** persona described only
+by its system prompt. Copying can't produce a held-out persona from other personas' demos —
+the base must actually read the held-out description. This separates **task-format** (from the
+diverse demos) from **persona-content** (from the held-out description).
+
+**The interesting contrast with the pilot:** there, a persona *description alone* (n=0) failed.
+Here, description **+ demonstrated task format** might succeed → "the base has persona-following
+machinery, but needs the task shown in-context to unlock it" (latent, elicitable). If it fails,
+that's clean support for Appendix F. A positive result also yields a **copy-free** on-policy
+base-generation protocol for the eventual extraction.
+
+**Design.**
+- Seen (8, in demos): farmer, drill_sergeant, con_artist, therapist, tech_ceo, kindergarten_teacher, professor, politician.
+- Held-out (3, distinctive voices): surgeon, zen_master, six_year_old. Controls: null, nonsense (should read generic).
+- Persona key = **full system-prompt description** (not a name — resists pretraining name-priors).
+- **1 trait fixed per prompt**, run across assertiveness + honesty. Fixed question held constant so persona is the only variable.
+- Controls (inline): **swap-description** (held-out personas share the same demo block), **n=0** (description only), **shuffle** (reversed demo order = recency control), **null/nonsense** targets.
+- Decoding: sampling + `repetition_penalty` + `no_repeat_ngram_size` (avoids the pilot's greedy degeneration).
+
+**Run:**
+```bash
+bash scripts/run_persona_generalization.sh
+#   = f1 (instruct demos, 11 personas) -> f3 (base generates held-out personas)
+python pipeline/f3_persona_generalization.py --dry-run   # preview a prompt without loading models
+```
+**Outputs:** `results/persona_generalization/generations.md` (grouped by trait×question, each
+held-out persona's main/shuffle/n0 next to the instruct reference) + `base_generations.jsonl`.
+
+**What to look for.** For a fixed (trait, question): do the held-out personas produce *distinct*
+voices matching their descriptions (surgeon clinical, zen_master koan-like, six_year_old
+childish)? Do null/nonsense read generic? Does `main` beat `n=0` (task-format helps)? Is output
+stable under `shuffle` (not just copying the last demo)? If yes across the board → the base
+conditions on a persona description when the task is demonstrated. Next: quantify with the
+persona classifier / LLM judge, then decide on extraction.
+
 ## Pipeline reference (files this sprint touches)
 
 | Step | Script | Purpose |
@@ -152,6 +205,8 @@ Only pursue if the pilot shows the base model can do the task:
 | — | `scripts/sweep_trajectory_layer.py` | pick the analysis layer matching the paper |
 | — | `scripts/summarize_trajectory.py` | write `results/olmo_trajectory/SUMMARY.md` |
 | — | `scripts/variance_by_persona.py` | Experiment 1b per-persona plot |
-| f1 | `pipeline/f1_fewshot_demos.py` | instruct-model demos for the few-shot pilot |
-| f2 | `pipeline/f2_fewshot_base_generate.py` | few-shot the base model + dump generations |
-| — | `scripts/run_fewshot_pilot.sh` | one-shot pilot runner (f1 → f2) |
+| f1 | `pipeline/f1_fewshot_demos.py` | instruct-model demos (persona+trait) for the pilots |
+| f2 | `pipeline/f2_fewshot_base_generate.py` | Exp 2: few-shot the base model (same-persona demos) |
+| f3 | `pipeline/f3_persona_generalization.py` | Exp 3: base generates HELD-OUT personas from seen-persona demos |
+| — | `scripts/run_fewshot_pilot.sh` | Exp 2 runner (f1 → f2) |
+| — | `scripts/run_persona_generalization.sh` | Exp 3 runner (f1 → f3) |
