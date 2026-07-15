@@ -1,0 +1,261 @@
+{
+  "pretrain_1pct": {
+    "pretrain_1pct": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "pretrain_10pct": {
+      "frobenius": 0.4113571609895818,
+      "spearman_rho": 0.49429078384302266,
+      "spearman_p": 2.4631114185603598e-05
+    },
+    "pretrain_50pct": {
+      "frobenius": 0.4154615260781528,
+      "spearman_rho": 0.31376683018474066,
+      "spearman_p": 0.010302951652251825
+    },
+    "base": {
+      "frobenius": 0.4431685187687346,
+      "spearman_rho": 0.4723724037156874,
+      "spearman_p": 6.214161470689093e-05
+    },
+    "sft": {
+      "frobenius": 1.2440043394921152,
+      "spearman_rho": 0.05867863479803779,
+      "spearman_p": 0.6397825793141024
+    },
+    "dpo": {
+      "frobenius": 1.391559009616948,
+      "spearman_rho": 0.031207598371777476,
+      "spearman_p": 0.8035555986335857
+    },
+    "instruct": {
+      "frobenius": 1.4801157543280914,
+      "spearman_rho": 0.005615280242145916,
+      "spearman_p": 0.9643085983500588
+    }
+  },
+  "pretrain_10pct": {
+    "pretrain_1pct": {
+      "frobenius": 0.4113571609895818,
+      "spearman_rho": 0.49429078384302266,
+      "spearman_p": 2.4631114185603598e-05
+    },
+    "pretrain_10pct": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "pretrain_50pct": {
+      "frobenius": 0.0926325823127618,
+      "spearman_rho": 0.8048637929234946,
+      "spearman_p": 3.845525092013094e-16
+    },
+    "base": {
+      "frobenius": 0.1099031791434296,
+      "spearman_rho": 0.7736353199039768,
+      "spearman_p": 2.64145072348979e-14
+    },
+    "sft": {
+      "frobenius": 1.461753052486101,
+      "spearman_rho": 0.35480638764220856,
+      "spearman_p": 0.003465283083877264
+    },
+    "dpo": {
+      "frobenius": 1.6141229800904957,
+      "spearman_rho": 0.35359565807327004,
+      "spearman_p": 0.0035859505822000643
+    },
+    "instruct": {
+      "frobenius": 1.7012832161418134,
+      "spearman_rho": 0.3476672581150193,
+      "spearman_p": 0.004232312140368489
+    }
+  },
+  "pretrain_50pct": {
+    "pretrain_1pct": {
+      "frobenius": 0.4154615260781528,
+      "spearman_rho": 0.31376683018474066,
+      "spearman_p": 0.010302951652251825
+    },
+    "pretrain_10pct": {
+      "frobenius": 0.0926325823127618,
+      "spearman_rho": 0.8048637929234946,
+      "spearman_p": 3.845525092013094e-16
+    },
+    "pretrain_50pct": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "base": {
+      "frobenius": 0.11600731991607242,
+      "spearman_rho": 0.8165118463625928,
+      "spearman_p": 6.501896087032246e-17
+    },
+    "sft": {
+      "frobenius": 1.4349502432137153,
+      "spearman_rho": 0.338231917336395,
+      "spearman_p": 0.005474802961257622
+    },
+    "dpo": {
+      "frobenius": 1.587454953274869,
+      "spearman_rho": 0.33827366663187564,
+      "spearman_p": 0.005468663625726859
+    },
+    "instruct": {
+      "frobenius": 1.6740681888680156,
+      "spearman_rho": 0.34102912013359776,
+      "spearman_p": 0.00507664247970524
+    }
+  },
+  "base": {
+    "pretrain_1pct": {
+      "frobenius": 0.4431685187687346,
+      "spearman_rho": 0.4723724037156874,
+      "spearman_p": 6.214161470689093e-05
+    },
+    "pretrain_10pct": {
+      "frobenius": 0.1099031791434296,
+      "spearman_rho": 0.7736353199039768,
+      "spearman_p": 2.64145072348979e-14
+    },
+    "pretrain_50pct": {
+      "frobenius": 0.11600731991607242,
+      "spearman_rho": 0.8165118463625928,
+      "spearman_p": 6.501896087032246e-17
+    },
+    "base": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "sft": {
+      "frobenius": 1.4887399542959046,
+      "spearman_rho": 0.32554013151028083,
+      "spearman_p": 0.007647534804439501
+    },
+    "dpo": {
+      "frobenius": 1.6433575204744193,
+      "spearman_rho": 0.29831959085690435,
+      "spearman_p": 0.014977151226724184
+    },
+    "instruct": {
+      "frobenius": 1.7306678722368856,
+      "spearman_rho": 0.29163970358000213,
+      "spearman_p": 0.01750507484194167
+    }
+  },
+  "sft": {
+    "pretrain_1pct": {
+      "frobenius": 1.2440043394921152,
+      "spearman_rho": 0.05867863479803779,
+      "spearman_p": 0.6397825793141024
+    },
+    "pretrain_10pct": {
+      "frobenius": 1.461753052486101,
+      "spearman_rho": 0.35480638764220856,
+      "spearman_p": 0.003465283083877264
+    },
+    "pretrain_50pct": {
+      "frobenius": 1.4349502432137153,
+      "spearman_rho": 0.338231917336395,
+      "spearman_p": 0.005474802961257622
+    },
+    "base": {
+      "frobenius": 1.4887399542959046,
+      "spearman_rho": 0.32554013151028083,
+      "spearman_p": 0.007647534804439501
+    },
+    "sft": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "dpo": {
+      "frobenius": 0.17516908623527708,
+      "spearman_rho": 0.985930487423025,
+      "spearman_p": 1.918215876541758e-51
+    },
+    "instruct": {
+      "frobenius": 0.2650364374422499,
+      "spearman_rho": 0.9789583550777581,
+      "spearman_p": 6.77059712313507e-46
+    }
+  },
+  "dpo": {
+    "pretrain_1pct": {
+      "frobenius": 1.391559009616948,
+      "spearman_rho": 0.031207598371777476,
+      "spearman_p": 0.8035555986335857
+    },
+    "pretrain_10pct": {
+      "frobenius": 1.6141229800904957,
+      "spearman_rho": 0.35359565807327004,
+      "spearman_p": 0.0035859505822000643
+    },
+    "pretrain_50pct": {
+      "frobenius": 1.587454953274869,
+      "spearman_rho": 0.33827366663187564,
+      "spearman_p": 0.005468663625726859
+    },
+    "base": {
+      "frobenius": 1.6433575204744193,
+      "spearman_rho": 0.29831959085690435,
+      "spearman_p": 0.014977151226724184
+    },
+    "sft": {
+      "frobenius": 0.17516908623527708,
+      "spearman_rho": 0.985930487423025,
+      "spearman_p": 1.918215876541758e-51
+    },
+    "dpo": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    },
+    "instruct": {
+      "frobenius": 0.09480049173616116,
+      "spearman_rho": 0.996785304247991,
+      "spearman_p": 6.880016673557355e-72
+    }
+  },
+  "instruct": {
+    "pretrain_1pct": {
+      "frobenius": 1.4801157543280914,
+      "spearman_rho": 0.005615280242145916,
+      "spearman_p": 0.9643085983500588
+    },
+    "pretrain_10pct": {
+      "frobenius": 1.7012832161418134,
+      "spearman_rho": 0.3476672581150193,
+      "spearman_p": 0.004232312140368489
+    },
+    "pretrain_50pct": {
+      "frobenius": 1.6740681888680156,
+      "spearman_rho": 0.34102912013359776,
+      "spearman_p": 0.00507664247970524
+    },
+    "base": {
+      "frobenius": 1.7306678722368856,
+      "spearman_rho": 0.29163970358000213,
+      "spearman_p": 0.01750507484194167
+    },
+    "sft": {
+      "frobenius": 0.2650364374422499,
+      "spearman_rho": 0.9789583550777581,
+      "spearman_p": 6.77059712313507e-46
+    },
+    "dpo": {
+      "frobenius": 0.09480049173616116,
+      "spearman_rho": 0.996785304247991,
+      "spearman_p": 6.880016673557355e-72
+    },
+    "instruct": {
+      "frobenius": 0.0,
+      "spearman_rho": 1.0,
+      "spearman_p": 0.0
+    }
+  }
+}
