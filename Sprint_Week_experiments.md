@@ -237,6 +237,28 @@ python pipeline/tiv1_extract.py --stages base instruct --personas farmer con_art
 honesty/warmth/empathy lines are expected to be noisy — that's the point of flagging them.) Then
 compare IV-ρ vs the CAA-ρ trajectory per trait.
 
+**N=25 base+sft finding (2026-07-15):** IV ρ is *far* below CAA (~0.40 vs ~0.96) and the base→SFT
+drop is small/mixed — the clean CAA cliff does NOT reproduce. honesty ρ=0.16 ≈ the 1/P≈0.10 noise
+floor (confirms it's noise). Two readings: (A) substantive — CAA's base ρ 0.96 was inertness (base
+barely engages the raw-`Context:` persona), and once few-shot forces engagement the base trait
+geometry is already persona-specific → the CAA cliff is partly a measurement artifact (vindicates
+the original confound); (B) artifact — N=25 vectors are just noisy. **Undecided — gated on the
+sanity checks below.**
+
+### Sanity checks (before trusting any IV ρ)  — judge-free (SBERT), `results/iv_sanity/`
+`tiv1` now always saves generations (`iv_generations/`, `--no-save-generations` to disable).
+- `pipeline/siv_sanity.py` — generates base few-shot completions (pos+neg) for a small cell set and
+  runs SBERT + linear probe: **persona-classification accuracy** (elicitation) and **per-cell
+  pos-vs-neg AUROC** (trait elicitation; AUROC≈0.5 ⇒ contrast is noise). → `elicitation.md`.
+- `pipeline/siv_steer.py` — steers the base with each IV vector (`α·‖h‖·unit(v)` at layer 15, α
+  sweep), dumps steered generations for eyeball (no judge). → `steered/steered_generations.md`.
+```bash
+python pipeline/siv_sanity.py --personas drill_sergeant farmer con_artist --traits confidence assertiveness honesty --n-gen 15
+python pipeline/siv_steer.py  --personas drill_sergeant farmer con_artist --traits confidence assertiveness honesty --alphas 0 2 4 8
+```
+Prediction to check: confidence pos-vs-neg AUROC high + its vector steers; honesty AUROC≈0.5 + its
+vector doesn't → the low honesty ρ is confirmed noise and the reliable-trait ρ is real signal.
+
 ## Pipeline reference (files this sprint touches)
 
 | Step | Script | Purpose |

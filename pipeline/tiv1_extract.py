@@ -85,6 +85,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--repetition-penalty", type=float, default=1.3)
     p.add_argument("--no-repeat-ngram-size", type=int, default=3)
     p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--no-save-generations", dest="save_generations", action="store_false", default=True,
+                   help="by default the generated text is saved alongside activations (iv_generations/)")
     p.add_argument("--device", default=None)
     p.add_argument("--dry-run", action="store_true")
     return p.parse_args()
@@ -116,8 +118,9 @@ def build_prompt(persona_sys: str, demos, target_q: str) -> str:
 
 @torch.inference_mode()
 def generate_and_extract(model, tok, prompts, args, device):
-    """Generate a completion for each prompt and return the mean hidden state over
-    ONLY the generated tokens (all decoder layers). Returns list of (n_layers, hidden)."""
+    """Generate a completion for each prompt and return (activations, texts):
+    the mean hidden state over ONLY the generated tokens (all decoder layers),
+    plus the decoded generated text."""
     tok.padding_side = "left"
     if tok.pad_token_id is None:
         tok.pad_token = tok.eos_token
@@ -144,18 +147,20 @@ def generate_and_extract(model, tok, prompts, args, device):
     gen_region[:, in_len:] = True
     gen_mask = gen_region & attn.bool()                    # generated, non-pad
 
-    results = []
+    results, texts = [], []
     for i in range(full.shape[0]):
         m = gen_mask[i]
         if int(m.sum()) == 0:
             results.append(None)
+            texts.append("")
             continue
         act = torch.stack([hs[L][i][m].float().mean(0) for L in range(n_layers)])  # (n_layers, hidden)
         results.append(act.cpu().half())
+        texts.append(tok.decode(full[i][m], skip_special_tokens=True).strip())
     del out, hs, full
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
-    return results
+    return results, texts
 
 
 def run_stage(stage_label, model, tok, personas, traits, demos_dir, out_dir, args, device, rng):
@@ -174,20 +179,27 @@ def run_stage(stage_label, model, tok, personas, traits, demos_dir, out_dir, arg
                     log.warning("[%s] only %d demos for %s/%s/%s (need %d), skipping",
                                 stage_label, len(pool), persona, trait.value, direction, args.n_demos)
                     continue
-                prompts, qids = [], []
+                prompts, qids, tqs = [], [], []
                 for qid, tq in targets:
                     demos = rng.sample(pool, args.n_demos)
                     prompts.append(build_prompt(psys, demos, tq))
-                    qids.append(qid)
-                acts = {}
+                    qids.append(qid); tqs.append(tq)
+                acts, gens = {}, []
                 for i in range(0, len(prompts), args.batch_size):
-                    batch_res = generate_and_extract(model, tok, prompts[i:i + args.batch_size], args, device)
-                    for qid, r in zip(qids[i:i + args.batch_size], batch_res):
+                    a, txt = generate_and_extract(model, tok, prompts[i:i + args.batch_size], args, device)
+                    for qid, tq, r, g in zip(qids[i:i + args.batch_size], tqs[i:i + args.batch_size], a, txt):
                         if r is not None:
                             acts[f"q{qid}"] = r
+                            gens.append({"qid": qid, "question": tq, "generation": g})
                 if acts:
                     out_dir.mkdir(parents=True, exist_ok=True)
                     torch.save(acts, out_path)
+                if args.save_generations and gens:
+                    gen_dir = out_dir.parent / "iv_generations"
+                    gen_dir.mkdir(parents=True, exist_ok=True)
+                    with open(gen_dir / f"{persona}_{trait.value}_{direction}.jsonl", "w") as f:
+                        for r in gens:
+                            f.write(json.dumps(r) + "\n")
             log.info("[%s] %s/%s done", stage_label, persona, trait.value)
 
 
