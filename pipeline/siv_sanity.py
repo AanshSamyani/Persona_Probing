@@ -58,7 +58,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--temperature", type=float, default=0.7)
     p.add_argument("--repetition-penalty", type=float, default=1.3)
     p.add_argument("--no-repeat-ngram-size", type=int, default=3)
-    p.add_argument("--sbert-model", default="sentence-transformers/all-MiniLM-L6-v2")
+    p.add_argument("--sbert-model", default="sentence-transformers/all-mpnet-base-v2",
+                   help="matches the paper's persona classifier (x1_context_classifier default)")
     p.add_argument("--seed", type=int, default=42)
     p.add_argument("--device", default=None)
     return p.parse_args()
