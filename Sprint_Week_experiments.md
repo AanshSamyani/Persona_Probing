@@ -200,6 +200,43 @@ the board → the base conditions on a persona description when the task is demo
 quantify with the persona classifier / LLM judge, then decide on extraction — keeping the live
 confounds (contamination, behavior≠geometry, not-CAA-comparable) in view.
 
+## Experiment 4 — IV variant of the OLMo trajectory (few-shot, SFT demo pool)  🔬 IN PROGRESS
+
+**Goal.** Re-measure the ρ trajectory (Fig 19) with **IV** extraction instead of CAA. Base checkpoints
+can't follow instructions, so we prime *every* checkpoint with a **fixed pool of SFT-generated
+persona+trait demos** (few-shot), let it generate, and extract the mean activation over **only the
+generated tokens**. One demo pool + one probe for all 7 stages removes the base-vs-post-training
+method mismatch and the stage-dependent-refusal confound; only the weights vary.
+
+**Why SFT for the demos.** SFT follows instructions but is pre-DPO/RLVR, so its negatives are less
+refusal-shaped than Instruct's. Verified on the server (`results/sft_demos_neg_check`).
+
+**Key gating finding (neg pole is fragile — informs the whole design):**
+- **honesty-neg is refused even by SFT** — "be deceptive" demos come back *honest* ("Honesty is the
+  best policy"). So honesty IV ≈ noise on OLMo. (Gemma-2-27B-IT *did* comply — so it's an OLMo-family
+  property, not an IV-method one; confirmed against the paper's Gemma responses on HF.) **Use the CAA
+  vectors for honesty.**
+- **warmth/empathy-neg work except where the persona *is* the trait** (con_artist·warmth stays warm;
+  drill_sergeant·assertiveness stays assertive) — a per-cell conflict, not a refusal.
+- The other 5 traits (assertiveness, confidence, deference, impulsivity, risk-taking) are clean.
+
+We run **all 8 traits** anyway and **flag the skeptical ones** (honesty; warmth/empathy) — dashed +
+`(!)` in the figures, called out in `SUMMARY.md`.
+
+**Pipeline:**
+```bash
+bash scripts/run_iv_trajectory.sh          # step0 SFT demos -> tiv1 extract -> tiv2 vectors -> tiv3 analysis -> tiv4 figures
+# quick validation first (2 stages, 2 personas, 2 traits, 5 gens):
+python pipeline/tiv1_extract.py --dry-run
+python pipeline/tiv1_extract.py --stages base instruct --personas farmer con_artist --traits honesty risk_taking --n-target 5
+```
+- `tiv1_extract.py` — few-shot IV extraction across checkpoints (N=25/direction, 5 demos each, generate + mean-pool generated tokens, all layers; models resolved to `/workspace/models/<stage>`). Resumable (skips existing cells), `--dry-run`.
+- `tiv2_vectors.py` → `iv_vectors/` (mean(pos)−mean(neg)); `tiv3_analysis.py --layer 15` → `iv_trajectory/` (ρ per stage/trait, transfer matrices, per-persona); `tiv4_figures.py` → `results/iv_trajectory/` (figures + SUMMARY, skeptical traits flagged).
+
+**What to read.** Does the SFT-cliff in ρ replicate under IV for the reliable traits? (dashed
+honesty/warmth/empathy lines are expected to be noisy — that's the point of flagging them.) Then
+compare IV-ρ vs the CAA-ρ trajectory per trait.
+
 ## Pipeline reference (files this sprint touches)
 
 | Step | Script | Purpose |
@@ -214,3 +251,5 @@ confounds (contamination, behavior≠geometry, not-CAA-comparable) in view.
 | f3 | `pipeline/f3_persona_generalization.py` | Exp 3: base generates HELD-OUT personas from seen-persona demos |
 | — | `scripts/run_fewshot_pilot.sh` | Exp 2 runner (f1 → f2) |
 | — | `scripts/run_persona_generalization.sh` | Exp 3 runner (f1 → f3) |
+| tiv1–4 | `pipeline/tiv1_extract.py` … `tiv4_figures.py` | Exp 4: IV trajectory (few-shot SFT demos → extract → vectors → analysis → figures) |
+| — | `scripts/run_iv_trajectory.sh` | Exp 4 runner (SFT demos → tiv1–4) |
