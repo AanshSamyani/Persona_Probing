@@ -1,0 +1,30 @@
+{
+  "layer": 15,
+  "stages": [
+    "base",
+    "sft"
+  ],
+  "personas": [
+    "farmer",
+    "politician",
+    "therapist",
+    "drill_sergeant",
+    "street_hustler",
+    "professor",
+    "tech_ceo",
+    "kindergarten_teacher",
+    "surgeon",
+    "con_artist"
+  ],
+  "traits": [
+    "assertiveness",
+    "confidence",
+    "deference",
+    "empathy",
+    "honesty",
+    "impulsivity",
+    "risk_taking",
+    "warmth"
+  ],
+  "method": "iv_fewshot_sft_demos"
+}

@@ -1,0 +1,26 @@
+{
+  "base": {
+    "base": {
+      "frobenius": 0.0,
+      "spearman_rho": 0.9999999999999999,
+      "spearman_p": 0.0
+    },
+    "sft": {
+      "frobenius": 0.3905635505508096,
+      "spearman_rho": 0.8457180500658761,
+      "spearman_p": 2.648628251659487e-13
+    }
+  },
+  "sft": {
+    "base": {
+      "frobenius": 0.3905635505508096,
+      "spearman_rho": 0.8457180500658761,
+      "spearman_p": 2.648628251659487e-13
+    },
+    "sft": {
+      "frobenius": 0.0,
+      "spearman_rho": 0.9999999999999999,
+      "spearman_p": 0.0
+    }
+  }
+}
