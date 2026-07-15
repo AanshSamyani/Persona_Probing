@@ -177,7 +177,8 @@ base-generation protocol for the eventual extraction.
 - Held-out (3, distinctive voices): surgeon, zen_master, six_year_old. Controls: null, nonsense (should read generic).
 - Persona key = **full system-prompt description** (not a name — resists pretraining name-priors).
 - **1 trait fixed per prompt**, run across assertiveness + honesty. Fixed question held constant so persona is the only variable.
-- Controls (inline): **swap-description** (held-out personas share the same demo block), **n=0** (description only), **shuffle** (reversed demo order = recency control), **null/nonsense** targets.
+- **n-sweep** over the number of seen-persona demos, n ∈ {1,3,5,7} (nested) — measures how many diverse examples the base needs before it keys on the held-out *description* rather than the nearest demo.
+- Controls (inline): **swap-description** (held-out personas share the same demo block per n), **n=0** (description only), **shuffle** (reversed demo order at max n = recency control), **null/nonsense** targets.
 - Decoding: sampling + `repetition_penalty` + `no_repeat_ngram_size` (avoids the pilot's greedy degeneration).
 
 **Run:**
@@ -187,14 +188,17 @@ bash scripts/run_persona_generalization.sh
 python pipeline/f3_persona_generalization.py --dry-run   # preview a prompt without loading models
 ```
 **Outputs:** `results/persona_generalization/generations.md` (grouped by trait×question, each
-held-out persona's main/shuffle/n0 next to the instruct reference) + `base_generations.jsonl`.
+held-out persona's n-sweep n=0/1/3/5/7 + shuffle next to the instruct reference) +
+`base_generations.jsonl`.
 
 **What to look for.** For a fixed (trait, question): do the held-out personas produce *distinct*
 voices matching their descriptions (surgeon clinical, zen_master koan-like, six_year_old
-childish)? Do null/nonsense read generic? Does `main` beat `n=0` (task-format helps)? Is output
-stable under `shuffle` (not just copying the last demo)? If yes across the board → the base
-conditions on a persona description when the task is demonstrated. Next: quantify with the
-persona classifier / LLM judge, then decide on extraction.
+childish)? **At what n does the held-out voice emerge / stabilize** (n-sweep sample complexity)?
+Do null/nonsense read generic? Does any n beat `n=0` (task-format helps beyond a bare
+description)? Is output stable under `shuffle` (not just copying the last demo)? If yes across
+the board → the base conditions on a persona description when the task is demonstrated. Next:
+quantify with the persona classifier / LLM judge, then decide on extraction — keeping the live
+confounds (contamination, behavior≠geometry, not-CAA-comparable) in view.
 
 ## Pipeline reference (files this sprint touches)
 

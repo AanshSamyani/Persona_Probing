@@ -1,31 +1,34 @@
 #!/usr/bin/env python3
-"""f3: in-context persona GENERALIZATION test on the base model.
+"""f3: in-context persona GENERALIZATION test on the base model, with an n-sweep.
 
 Follow-up to the few-shot pilot (f2). There, demos and target were the SAME
 persona, so "copy the demos" and "condition on the persona" were
-indistinguishable. Here the demos are 8 DIFFERENT (seen) personas answering one
+indistinguishable. Here the demos are n DIFFERENT (seen) personas answering one
 fixed question, and the target is a HELD-OUT persona described only by its
-system prompt. Copying can't produce the held-out persona — the base must read
-the held-out description and map it to a voice. This separates task-format (from
-the diverse demos) from persona-content (from the held-out description).
+system prompt. Copying can't produce the held-out persona from OTHER personas'
+demos — the base must read the held-out description. This separates task-format
+(from the diverse demos) from persona-content (from the held-out description).
+
+**n-sweep:** we vary the NUMBER of seen-persona demos n ∈ {1,3,5,7} (nested: n
+uses the first n seen personas). This measures how many diverse examples the base
+needs before it reliably keys on the held-out *description* rather than the
+nearest demo. n=0 (description only, no demos) is kept as a baseline.
 
 Prompt (raw text, base model; one fixed question, one trait per prompt):
     Persona: {seen_1 description}
     Q: {fixed question}
     A: {seen_1 on-policy answer}
-    ... (8 seen personas)
+    ... (n seen personas)
     Persona: {HELD-OUT description}
     Q: {fixed question}
     A:            <- base generates
 
-Controls (all inline in the output):
-  - swap-description: the held-out personas share the SAME demo block per
-    (trait, question), so their outputs side by side test whether the base
-    tracks the description.
-  - null / nonsense held-out "personas": should yield generic text if the base
-    is really keying on the description.
-  - n=0: held-out description with NO demos (reprises the pilot's failure mode).
-  - shuffle: demos in reversed order (recency control).
+Controls (inline):
+  - n-sweep (1,3,5,7) — sample complexity of the description->voice mapping.
+  - swap-description — held-out personas share the SAME demo block per (trait, q, n).
+  - null / nonsense held-out "personas" — should read generic.
+  - n=0 — description only, no demos (the pilot's failure mode).
+  - shuffle — reversed demo order at max n (recency control).
 
 Behavioral/feasibility only — no activation extraction. Reuses f1's instruct
 demos. Outputs to results/persona_generalization/.
@@ -33,14 +36,13 @@ demos. Outputs to results/persona_generalization/.
 Usage:
     python pipeline/f3_persona_generalization.py --dry-run
     python pipeline/f3_persona_generalization.py \
-        --demos-dir outputs/OLMo-2-1124-7B-Instruct/persona_gen/demos
+        --demos-dir outputs/OLMo-2-1124-7B-Instruct/persona_gen/demos --n-values 1 3 5 7
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-from collections import defaultdict
 from pathlib import Path
 
 import torch
@@ -65,7 +67,7 @@ def default_base_model() -> str:
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="In-context persona generalization on the base model")
+    p = argparse.ArgumentParser(description="In-context persona generalization (n-sweep) on the base model")
     p.add_argument("--base-model", default=default_base_model())
     p.add_argument("--demos-dir", default=None,
                    help="f1 output dir (default: outputs/OLMo-2-1124-7B-Instruct/persona_gen/demos)")
@@ -73,7 +75,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--heldout", nargs="+", default=HELDOUT_REAL)
     p.add_argument("--controls", nargs="+", default=HELDOUT_CONTROL)
     p.add_argument("--traits", nargs="+", default=None, help="default: traits found in demos _meta.json")
+    p.add_argument("--n-values", nargs="+", type=int, default=[1, 3, 5, 7],
+                   help="number of seen-persona demos to sweep (nested: first n seen personas)")
     p.add_argument("--n-fixed-questions", type=int, default=3)
+    p.add_argument("--no-recency", dest="recency", action="store_false", default=True,
+                   help="disable the reversed-order recency check at max n")
     p.add_argument("--demo-max-words", type=int, default=70)
     p.add_argument("--desc-max-words", type=int, default=60)
     p.add_argument("--max-new-tokens", type=int, default=200)
@@ -118,11 +124,12 @@ def persona_desc(slug: str, desc_max_words: int) -> str:
     return truncate_words(flat(d), desc_max_words)
 
 
-def format_demo_block(seen_descs, question, responses, demo_max_words) -> str:
+def format_block(demos, seen_descs, question, demo_max_words) -> str:
+    """demos = ordered list of (slug, response)."""
     parts = []
-    for slug in responses:  # responses is an ordered dict: slug -> resp
+    for slug, resp in demos:
         parts.append(f"Persona: {seen_descs[slug]}\nQ: {question}\nA: "
-                     f"{truncate_words(flat(responses[slug]), demo_max_words)}")
+                     f"{truncate_words(flat(resp), demo_max_words)}")
     return "\n\n".join(parts)
 
 
@@ -169,6 +176,7 @@ def main() -> None:
 
     traits = [Trait(t) for t in (args.traits or meta["traits"])]
     n_fixed = min(args.n_fixed_questions, meta.get("n_demo_questions", args.n_fixed_questions))
+    sweep = sorted({n for n in args.n_values if n > 0})     # positive n only; n=0 handled as baseline
     heldout_all = list(args.heldout) + list(args.controls)
     results_dir = Path(args.results_dir) if args.results_dir else REPO_ROOT / "results" / "persona_generalization"
 
@@ -176,39 +184,43 @@ def main() -> None:
     heldout_descs = {h: persona_desc(h, args.desc_max_words) for h in heldout_all}
 
     # ---- build all jobs -------------------------------------------------
-    jobs = []  # dict(trait, qid, question, heldout, condition, prompt)
+    jobs = []  # dict(trait, qid, question, heldout, condition, n, prompt)
+
+    def job(trait, qid, question, h, cond, n, prompt):
+        return dict(trait=trait, qid=qid, question=question, heldout=h,
+                    condition=cond, n=n, prompt=prompt)
+
     for trait in traits:
         ds = load_trait_dataset(trait)
         for qid in range(n_fixed):
             question = ds.questions[qid]
-            # ordered seen responses for this (trait, question)
-            responses = {}
+            avail = []
             for s in args.seen:
                 r = load_response(demos_dir, s, trait.value, qid)
                 if r is not None:
-                    responses[s] = r
-            if len(responses) < 2:
-                log.warning("Only %d seen demos for %s q%d — skipping", len(responses), trait.value, qid)
+                    avail.append((s, r))
+            if len(avail) < 2:
+                log.warning("Only %d seen demos for %s q%d — skipping", len(avail), trait.value, qid)
                 continue
-            block_fwd = format_demo_block(seen_descs, question, responses, args.demo_max_words)
-            rev = {k: responses[k] for k in reversed(list(responses))}
-            block_rev = format_demo_block(seen_descs, question, rev, args.demo_max_words)
-
+            maxn = min(max(sweep) if sweep else 0, len(avail))
             for h in heldout_all:
                 tgt = build_target(heldout_descs[h], question)
-                jobs.append(dict(trait=trait.value, qid=qid, question=question, heldout=h,
-                                 condition="main", prompt=f"{block_fwd}\n\n{tgt}"))
-                jobs.append(dict(trait=trait.value, qid=qid, question=question, heldout=h,
-                                 condition="shuffle", prompt=f"{block_rev}\n\n{tgt}"))
-                jobs.append(dict(trait=trait.value, qid=qid, question=question, heldout=h,
-                                 condition="n0", prompt=tgt))
+                jobs.append(job(trait.value, qid, question, h, "n0", 0, tgt))          # baseline
+                for n in sweep:
+                    nn = min(n, len(avail))
+                    block = format_block(avail[:nn], seen_descs, question, args.demo_max_words)
+                    jobs.append(job(trait.value, qid, question, h, f"n{n}", n, f"{block}\n\n{tgt}"))
+                if args.recency and maxn >= 2:
+                    block_rev = format_block(list(reversed(avail[:maxn])), seen_descs, question, args.demo_max_words)
+                    jobs.append(job(trait.value, qid, question, h, f"n{maxn}_shuffle", maxn, f"{block_rev}\n\n{tgt}"))
 
-    log.info("Persona-generalization plan: %d base generations | traits=%s fixed_q=%d seen=%d heldout=%s",
-             len(jobs), [t.value for t in traits], n_fixed, len(args.seen), heldout_all)
+    log.info("Persona-generalization plan: %d base generations | traits=%s fixed_q=%d seen=%d sweep=%s heldout=%s",
+             len(jobs), [t.value for t in traits], n_fixed, len(args.seen), sweep, heldout_all)
 
     if args.dry_run:
-        print("=== example MAIN prompt (first job) ===\n")
-        print(jobs[0]["prompt"][:2000] if jobs else "(no jobs — run f1 first)")
+        print(f"=== example prompt (largest n, first job of that kind) ===\n")
+        ex = next((j for j in jobs if j["condition"] == f"n{max(sweep)}"), jobs[0] if jobs else None)
+        print(ex["prompt"][:2200] if ex else "(no jobs — run f1 first)")
         return
 
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -229,40 +241,45 @@ def main() -> None:
     with open(results_dir / "base_generations.jsonl", "w") as f:
         for j in jobs:
             f.write(json.dumps({k: j[k] for k in
-                                ("trait", "qid", "question", "heldout", "condition", "generation")}) + "\n")
-    write_markdown(jobs, traits, n_fixed, args, demos_dir, seen_descs, heldout_all, results_dir)
+                                ("trait", "qid", "question", "heldout", "n", "condition", "generation")}) + "\n")
+    write_markdown(jobs, traits, n_fixed, sweep, args, demos_dir, seen_descs, heldout_all, results_dir)
     log.info("Done. Eyeball: %s", results_dir / "generations.md")
 
 
-def write_markdown(jobs, traits, n_fixed, args, demos_dir, seen_descs, heldout_all, results_dir):
+def write_markdown(jobs, traits, n_fixed, sweep, args, demos_dir, seen_descs, heldout_all, results_dir):
     gmap = {}
     qtext = {}
     for j in jobs:
         gmap[(j["trait"], j["qid"], j["heldout"], j["condition"])] = j["generation"]
         qtext[(j["trait"], j["qid"])] = j["question"]
+    maxn = min(max(sweep) if sweep else 0, len(args.seen))
 
     L = [
-        "# In-context persona generalization — base model", "",
-        f"Base: `{args.base_model}`. Demos: 8 seen personas (from instruct, f1) answering one fixed "
+        "# In-context persona generalization (n-sweep) — base model", "",
+        f"Base: `{args.base_model}`. Demos: n seen personas (from instruct, f1) answering one fixed "
         "question; target = a **held-out** persona described only by its system prompt.", "",
-        "**The test:** copying can't produce a held-out persona from other personas' demos — the base "
-        "must read the held-out description. For each (trait, question) the held-out personas share the "
-        "**same** demo block, so reading them side by side is the swap-description control.", "",
-        "- `main` = 8 demos, forward order · `shuffle` = reversed order (recency control) · "
-        "`n0` = held-out description only, no demos (the pilot's failure mode).", "",
-        "- `null` / `nonsense` targets should read as **generic** if the base is truly keying on the "
-        "description.", "",
+        "**The test:** copying can't produce a held-out persona from *other* personas' demos — the base "
+        "must read the held-out description. **n-sweep** varies how many seen-persona demos it gets "
+        f"(nested: n uses the first n of `{', '.join(args.seen)}`).", "",
+        "- `n=0` = description only, no demos (pilot failure mode) · `nX` = X demos · "
+        f"`n{maxn}_shuffle` = reversed order (recency control).",
+        "- For each (trait, question) the held-out personas share the **same** demo block per n "
+        "(swap-description control). `null`/`nonsense` should read **generic**.", "",
     ]
+    row_conds = ["n0"] + [f"n{n}" for n in sweep]
+    if args.recency and maxn >= 2:
+        row_conds.append(f"n{maxn}_shuffle")
+
     for trait in [t.value for t in traits]:
         for qid in range(n_fixed):
             if (trait, qid) not in qtext:
                 continue
             L.append(f"\n## {trait} · Q{qid}: {flat(qtext[(trait, qid)])}\n")
-            L.append("<details><summary>demo block: 8 seen personas (truncated)</summary>\n")
-            for s in args.seen:
+            L.append(f"<details><summary>seen demo pool (first {maxn}, in order; n=k uses the first k)</summary>\n")
+            for i, s in enumerate(args.seen[:maxn], 1):
                 r = load_response(demos_dir, s, trait, qid)
                 if r is not None:
-                    L.append(f"- **{s}:** {flat(truncate_words(r, args.demo_max_words))}")
+                    L.append(f"{i}. **{s}:** {flat(truncate_words(r, args.demo_max_words))}")
             L.append("\n</details>\n")
             for h in heldout_all:
                 tag = " *(control)*" if h in args.controls else ""
@@ -270,10 +287,11 @@ def write_markdown(jobs, traits, n_fixed, args, demos_dir, seen_descs, heldout_a
                 ref = load_response(demos_dir, h, trait, qid)
                 if ref is not None:
                     L.append(f"- **instruct ref:** {flat(truncate_words(ref, args.demo_max_words))}")
-                for cond, label in (("main", "main (8 demos)"), ("shuffle", "shuffle (rev)"), ("n0", "n=0 (no demos)")):
+                for cond in row_conds:
                     g = gmap.get((trait, qid, h, cond))
                     if g is not None:
-                        L.append(f"- **base · {label}:** {flat(g) or '—'}")
+                        label = cond.replace("_shuffle", " (shuffle)").replace("n", "n=")
+                        L.append(f"- **{label}:** {flat(g) or '—'}")
                 L.append("")
     results_dir.mkdir(parents=True, exist_ok=True)
     (results_dir / "generations.md").write_text("\n".join(L))
