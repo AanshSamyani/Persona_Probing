@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
-"""Layer selection, criterion (i): self-steering behavioral-lift sweep  (paper §A.2).
+"""Layer selection, criterion (i): self-steering behavioral-lift sweep  (paper §A.2/§A.3).
 
-Reproduces the paper's primary layer-selection criterion: for each candidate
-layer, steer the persona-prompted model with the cell's OWN trait vector
-(self-steer, alpha=2, L2-normalized per §A.3), generate, and score the trait with
-a held-out Claude judge. Lift = mean(self-steered trait score) - mean(baseline
-trait score). The paper picks a layer whose lift is "among the largest in the
-sweep" AND whose bootstrap stability (ls_bootstrap_sweep.py) is high.
+Reproduces the paper's primary layer-selection criterion, extended over steering
+strength: for each (candidate layer L, steering coefficient alpha), steer the
+persona-prompted model with the cell's OWN trait vector (L2-normalized per §A.3),
+generate, and score the trait with a held-out Claude judge. Lift = mean(steered
+trait score) - mean(baseline trait score).
 
-Design: loads the model ONCE, caches each cell's baseline (layer-independent), and
-sweeps all layers internally. Steering uses the same assistant_axis.ActivationSteering
-path as pipeline/8_steered_generation.py, so the alpha/normalize semantics match the
-paper exactly. Judged via OpenRouterJudge (repo's 9_steering_eval hardcodes the
-Anthropic API, which we don't use).
+The paper picks the layer at alpha=2 whose lift is "among the largest in the sweep"
+AND whose bootstrap stability (ls_bootstrap_sweep.py) is high; it also discusses
+alpha in {1,2,4,8} (§A.3: alpha=2 chosen; 4 starts losing coherence; 8 collapses).
+Sweeping alpha here reproduces that rationale on Qwen and shows whether the best
+layer is alpha-dependent.
 
-Cost: judge calls = n_cells * n_questions * (1 baseline + n_layers). Use --dry-run
-to print the count and rough $, and start with a cell subset + --judge-model haiku.
+Every rollout (baseline + each layer x alpha) is streamed to generations.jsonl and
+also written to a human-readable rollouts.md grouped by cell, so the actual text can
+be eyeballed later (coherence, style, over-steering artifacts).
+
+Design: loads the model ONCE, caches each cell's baseline (layer/alpha-independent),
+computes normalized steer vectors per layer once (reused across alpha). Steering uses
+the same assistant_axis.ActivationSteering path as pipeline/8_steered_generation.py,
+so the alpha/normalize semantics match the paper. Judged via OpenRouterJudge.
+
+Cost: judge calls = n_cells * n_questions * (1 + n_layers * n_alphas). Use --dry-run.
 
 Requires OPENROUTER_API_KEY. Runs on the GPU server (needs the model + assistant-axis-ref).
 
@@ -24,8 +31,8 @@ Usage:
     python pipeline/ls_selfsteer_sweep.py \
       --model /workspace/models/Qwen2.5-7B-Instruct \
       --vectors-dir outputs/Qwen2.5-7B-Instruct/caa_vectors \
-      --layers 10 14 16 18 19 20 21 22 24 26 \
-      --alpha 2 --n-questions 3 --dry-run
+      --layers 6 10 14 16 18 19 20 21 23 26 \
+      --alphas 1 2 4 8 --n-questions 3 --dry-run
 """
 
 from __future__ import annotations
@@ -34,6 +41,7 @@ import argparse
 import json
 import random
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -55,11 +63,12 @@ COST_PER_CALL = {"anthropic/claude-sonnet-4.5": 0.0015, "anthropic/claude-haiku-
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Self-steer behavioral-lift layer sweep (criterion i)")
+    p = argparse.ArgumentParser(description="Self-steer behavioral-lift layer x alpha sweep (criterion i)")
     p.add_argument("--model", required=True, help="HF id or local path (Qwen2.5-7B-Instruct)")
     p.add_argument("--vectors-dir", required=True, help="CAA vectors dir ({persona}_{trait}.pt)")
     p.add_argument("--layers", nargs="+", type=int, required=True)
-    p.add_argument("--alpha", type=float, default=2.0, help="steering coefficient (paper: 2)")
+    p.add_argument("--alphas", nargs="+", type=float, default=[1.0, 2.0, 4.0, 8.0],
+                   help="steering coefficients (paper discusses 1,2,4,8; selection uses 2)")
     p.add_argument("--no-normalize", action="store_true",
                    help="disable L2-normalize+mean-rescale (paper uses normalized vectors)")
     p.add_argument("--personas", nargs="+", default=DEF_PERSONAS)
@@ -74,6 +83,33 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--output-dir", default=None)
     p.add_argument("--dry-run", action="store_true", help="print gen+judge counts and cost, no model")
     return p.parse_args()
+
+
+def write_rollouts_md(path: Path, records: list, baseline_mean: dict) -> None:
+    """Human-readable dump grouped by cell -> question -> (baseline, then layer/alpha rollouts)."""
+    by_cell = defaultdict(list)
+    for r in records:
+        by_cell[(r["persona"], r["trait"])].append(r)
+    lines = ["# Self-steer layer×alpha rollouts (eyeball)", "",
+             "Grouped by cell. For each question: baseline first, then steered rollouts "
+             "sorted by (layer, alpha). `score` = judge trait score 0..1.", ""]
+    for (persona, trait), recs in sorted(by_cell.items()):
+        bm = baseline_mean.get((persona, trait))
+        lines.append(f"\n## {persona} · {trait}" + (f"  (baseline mean {bm:.2f})" if bm is not None else ""))
+        by_q = defaultdict(list)
+        for r in recs:
+            by_q[r["question"]].append(r)
+        for q, qrecs in by_q.items():
+            lines.append(f"\n**Q: {q}**\n")
+            base = [r for r in qrecs if r["phase"] == "baseline"]
+            for r in base:
+                lines.append(f"- _baseline_ (score {r['trait_score']:.2f}): {r['response']}")
+            steer = sorted([r for r in qrecs if r["phase"] == "steered"],
+                           key=lambda r: (r["layer"], r["alpha"]))
+            for r in steer:
+                lines.append(f"- L{r['layer']} α={r['alpha']:g} (score {r['trait_score']:.2f}): {r['response']}")
+            lines.append("")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
@@ -92,7 +128,6 @@ def main() -> None:
         personas = args.personas
         traits = [Trait(t) for t in args.traits]
 
-    # sample the same questions per trait (shared across cells/layers)
     datasets = load_all_trait_datasets(traits)
     rng = random.Random(args.seed)
     qs_by_trait = {}
@@ -106,19 +141,20 @@ def main() -> None:
     cells = [(p, t) for p in personas for t in traits if t.value in qs_by_trait
              and (vdir / f"{p}_{t.value}.pt").exists()]
     n_q = args.n_questions
-    judge_calls = len(cells) * n_q * (1 + len(args.layers))
+    n_steer_cfg = len(args.layers) * len(args.alphas)
+    judge_calls = len(cells) * n_q * (1 + n_steer_cfg)
     est = COST_PER_CALL.get(args.judge_model, 0.0015) * judge_calls
 
     print(f"Layers:   {args.layers}")
+    print(f"Alphas:   {args.alphas}")
     print(f"Cells:    {len(cells)} ({len(personas)} personas x {len(traits)} traits, vectors present)")
-    print(f"Questions/cell: {n_q}   alpha={args.alpha}  normalize={not args.no_normalize}")
-    print(f"Generations: baseline {len(cells)*n_q} + steered {len(cells)*len(args.layers)*n_q}")
+    print(f"Questions/cell: {n_q}   normalize={not args.no_normalize}")
+    print(f"Generations: baseline {len(cells)*n_q} + steered {len(cells)*n_steer_cfg*n_q}")
     print(f"Judge model: {args.judge_model}")
     print(f"Judge calls: {judge_calls}   rough cost: ~${est:.2f}")
     if args.dry_run:
         return
 
-    # ---- load model + judge ----
     from assistant_axis.internals.model import ProbingModel
     from assistant_axis.steering import ActivationSteering
     from assistant_axis.generation import generate_response, format_conversation
@@ -129,18 +165,23 @@ def main() -> None:
     judge = OpenRouterJudge(model=args.judge_model)
     out_dir.mkdir(parents=True, exist_ok=True)
     gen_f = open(out_dir / "generations.jsonl", "a")
+    records = []  # kept in memory for the readable md
 
-    def gen(system_prompt, question, steer=None, layer=None):
+    def emit(rec):
+        gen_f.write(json.dumps(rec) + "\n")
+        gen_f.flush()
+        records.append(rec)
+
+    def gen(system_prompt, question, steer=None, layer=None, alpha=None):
         conv = format_conversation(system_prompt, question, tok)
         if steer is None:
             return generate_response(model, tok, conv, max_new_tokens=args.max_new_tokens,
                                      temperature=args.temperature)
-        with ActivationSteering(model, steering_vectors=[steer], coefficients=[args.alpha],
+        with ActivationSteering(model, steering_vectors=[steer], coefficients=[alpha],
                                 layer_indices=[layer]):
             return generate_response(model, tok, conv, max_new_tokens=args.max_new_tokens,
                                      temperature=args.temperature)
 
-    # precompute per-layer normalized self-steer vectors (paper §A.3: L2-normalize, rescale to mean ||v||)
     def steer_vecs_at(L):
         raw = {}
         for p, t in cells:
@@ -161,46 +202,57 @@ def main() -> None:
             r = gen(sp, q)
             s = judge.score_trait(r, t).score
             sc.append(s)
-            gen_f.write(json.dumps({"phase": "baseline", "persona": p, "trait": t.value,
-                                    "question": q, "response": r, "trait_score": s}) + "\n")
+            emit({"phase": "baseline", "layer": None, "alpha": 0.0, "persona": p, "trait": t.value,
+                  "question": q, "response": r, "trait_score": s})
         baseline[(p, t.value)] = float(np.mean(sc))
         log.info("baseline %s/%s = %.3f", p, t.value, baseline[(p, t.value)])
 
-    # ---- steered, per layer ----
-    per_layer = {}
+    # ---- steered: layer x alpha ----
+    per_cfg = {}
     for L in args.layers:
         sv = steer_vecs_at(L)
-        lifts, steered_means = [], []
-        for p, t in cells:
-            key = (p, t.value)
-            if key not in sv:
-                continue
-            sp = pmap[p].default_system_prompt
-            sc = []
-            for q in qs_by_trait[t.value]:
-                r = gen(sp, q, steer=sv[key].to(model.device), layer=L)
-                s = judge.score_trait(r, t).score
-                sc.append(s)
-                gen_f.write(json.dumps({"phase": "steered", "layer": L, "persona": p, "trait": t.value,
-                                        "question": q, "response": r, "trait_score": s}) + "\n")
-            steered_mean = float(np.mean(sc))
-            steered_means.append(steered_mean)
-            lifts.append(steered_mean - baseline[key])
-        per_layer[L] = {"mean_lift": float(np.mean(lifts)) if lifts else None,
-                        "std_lift": float(np.std(lifts)) if lifts else None,
-                        "mean_steered": float(np.mean(steered_means)) if steered_means else None,
-                        "n_cells": len(lifts)}
-        log.info(">>> layer %d: mean self-lift = %+.3f (n=%d)", L, per_layer[L]["mean_lift"], len(lifts))
+        for a in args.alphas:
+            lifts, steered_means = [], []
+            for p, t in cells:
+                key = (p, t.value)
+                if key not in sv:
+                    continue
+                sp = pmap[p].default_system_prompt
+                sc = []
+                for q in qs_by_trait[t.value]:
+                    r = gen(sp, q, steer=sv[key].to(model.device), layer=L, alpha=a)
+                    s = judge.score_trait(r, t).score
+                    sc.append(s)
+                    emit({"phase": "steered", "layer": L, "alpha": a, "persona": p, "trait": t.value,
+                          "question": q, "response": r, "trait_score": s})
+                sm = float(np.mean(sc))
+                steered_means.append(sm)
+                lifts.append(sm - baseline[key])
+            per_cfg[(L, a)] = {"layer": L, "alpha": a,
+                               "mean_lift": float(np.mean(lifts)) if lifts else None,
+                               "std_lift": float(np.std(lifts)) if lifts else None,
+                               "mean_steered": float(np.mean(steered_means)) if steered_means else None,
+                               "n_cells": len(lifts)}
+            log.info(">>> L%d α=%g: mean self-lift = %+.3f (n=%d)",
+                     L, a, per_cfg[(L, a)]["mean_lift"], len(lifts))
     gen_f.close()
     judge.close()
 
-    summary = {"model": Path(args.model).name, "criterion": "selfsteer_lift", "alpha": args.alpha,
-               "judge_model": args.judge_model, "baseline_mean": float(np.mean(list(baseline.values()))),
-               "rows": [{"layer": L, **per_layer[L]} for L in args.layers if L in per_layer]}
+    write_rollouts_md(out_dir / "rollouts.md", records, baseline)
+
+    summary = {"model": Path(args.model).name, "criterion": "selfsteer_lift",
+               "alphas": args.alphas, "layers": args.layers, "judge_model": args.judge_model,
+               "baseline_mean": float(np.mean(list(baseline.values()))),
+               "rows": [per_cfg[(L, a)] for L in args.layers for a in args.alphas if (L, a) in per_cfg]}
     json.dump(summary, open(out_dir / "selfsteer_lift.json", "w"), indent=2)
-    print(f"\nwrote {out_dir / 'selfsteer_lift.json'}")
-    best = max(summary["rows"], key=lambda r: r["mean_lift"])
-    print(f">>> largest self-steer lift: layer {best['layer']}  ({best['mean_lift']:+.3f})")
+    print(f"\nwrote {out_dir / 'selfsteer_lift.json'}  and  {out_dir / 'rollouts.md'}")
+
+    # report best per alpha
+    for a in args.alphas:
+        rows_a = [r for r in summary["rows"] if r["alpha"] == a and r["mean_lift"] is not None]
+        if rows_a:
+            best = max(rows_a, key=lambda r: r["mean_lift"])
+            print(f"  α={a:g}: largest lift at layer {best['layer']}  ({best['mean_lift']:+.3f})")
 
 
 if __name__ == "__main__":
