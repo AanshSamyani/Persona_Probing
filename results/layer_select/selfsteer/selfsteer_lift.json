@@ -1,0 +1,79 @@
+{
+  "model": "Qwen2.5-7B-Instruct",
+  "criterion": "selfsteer_lift",
+  "alpha": 2.0,
+  "judge_model": "anthropic/claude-sonnet-4.5",
+  "baseline_mean": 0.6208333333333333,
+  "rows": [
+    {
+      "layer": 6,
+      "mean_lift": 0.03645833333333332,
+      "std_lift": 0.07665279539368848,
+      "mean_steered": 0.6572916666666666,
+      "n_cells": 16
+    },
+    {
+      "layer": 10,
+      "mean_lift": 0.013541666666666667,
+      "std_lift": 0.08400122973636887,
+      "mean_steered": 0.6343749999999999,
+      "n_cells": 16
+    },
+    {
+      "layer": 14,
+      "mean_lift": 0.07916666666666666,
+      "std_lift": 0.14619003994040697,
+      "mean_steered": 0.7,
+      "n_cells": 16
+    },
+    {
+      "layer": 16,
+      "mean_lift": 0.1072916666666667,
+      "std_lift": 0.13843981218284798,
+      "mean_steered": 0.728125,
+      "n_cells": 16
+    },
+    {
+      "layer": 18,
+      "mean_lift": 0.09791666666666668,
+      "std_lift": 0.13487069424699596,
+      "mean_steered": 0.71875,
+      "n_cells": 16
+    },
+    {
+      "layer": 19,
+      "mean_lift": 0.046875,
+      "std_lift": 0.12250549165695027,
+      "mean_steered": 0.6677083333333333,
+      "n_cells": 16
+    },
+    {
+      "layer": 20,
+      "mean_lift": 0.040625,
+      "std_lift": 0.10800732196116253,
+      "mean_steered": 0.6614583333333334,
+      "n_cells": 16
+    },
+    {
+      "layer": 21,
+      "mean_lift": 0.025000000000000015,
+      "std_lift": 0.07637626158259733,
+      "mean_steered": 0.6458333333333333,
+      "n_cells": 16
+    },
+    {
+      "layer": 23,
+      "mean_lift": 0.0364583333333333,
+      "std_lift": 0.08704619423361112,
+      "mean_steered": 0.6572916666666666,
+      "n_cells": 16
+    },
+    {
+      "layer": 26,
+      "mean_lift": 0.04999999999999999,
+      "std_lift": 0.11799835215421911,
+      "mean_steered": 0.6708333333333334,
+      "n_cells": 16
+    }
+  ]
+}
