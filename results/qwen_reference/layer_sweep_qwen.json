@@ -1,0 +1,222 @@
+{
+  "model": "Qwen2.5-7B-Instruct",
+  "n_layers": 27,
+  "rows": [
+    {
+      "layer": 0,
+      "depth": 0.0,
+      "persona_mean": 0.9938,
+      "persona_min": 0.9825,
+      "nonsense": 0.9935,
+      "gap": -0.0003
+    },
+    {
+      "layer": 1,
+      "depth": 0.038,
+      "persona_mean": 0.992,
+      "persona_min": 0.9821,
+      "nonsense": 0.9898,
+      "gap": -0.0022
+    },
+    {
+      "layer": 2,
+      "depth": 0.077,
+      "persona_mean": 0.9736,
+      "persona_min": 0.9208,
+      "nonsense": 0.9609,
+      "gap": -0.0126
+    },
+    {
+      "layer": 3,
+      "depth": 0.115,
+      "persona_mean": 0.9593,
+      "persona_min": 0.8814,
+      "nonsense": 0.9211,
+      "gap": -0.0382
+    },
+    {
+      "layer": 4,
+      "depth": 0.154,
+      "persona_mean": 0.9472,
+      "persona_min": 0.8719,
+      "nonsense": 0.8989,
+      "gap": -0.0483
+    },
+    {
+      "layer": 5,
+      "depth": 0.192,
+      "persona_mean": 0.9465,
+      "persona_min": 0.8844,
+      "nonsense": 0.8986,
+      "gap": -0.0479
+    },
+    {
+      "layer": 6,
+      "depth": 0.231,
+      "persona_mean": 0.946,
+      "persona_min": 0.8549,
+      "nonsense": 0.8989,
+      "gap": -0.0471
+    },
+    {
+      "layer": 7,
+      "depth": 0.269,
+      "persona_mean": 0.9411,
+      "persona_min": 0.8711,
+      "nonsense": 0.8935,
+      "gap": -0.0476
+    },
+    {
+      "layer": 8,
+      "depth": 0.308,
+      "persona_mean": 0.9446,
+      "persona_min": 0.8963,
+      "nonsense": 0.9147,
+      "gap": -0.03
+    },
+    {
+      "layer": 9,
+      "depth": 0.346,
+      "persona_mean": 0.9525,
+      "persona_min": 0.8982,
+      "nonsense": 0.9318,
+      "gap": -0.0207
+    },
+    {
+      "layer": 10,
+      "depth": 0.385,
+      "persona_mean": 0.9384,
+      "persona_min": 0.8775,
+      "nonsense": 0.9125,
+      "gap": -0.026
+    },
+    {
+      "layer": 11,
+      "depth": 0.423,
+      "persona_mean": 0.9388,
+      "persona_min": 0.8742,
+      "nonsense": 0.9112,
+      "gap": -0.0276
+    },
+    {
+      "layer": 12,
+      "depth": 0.462,
+      "persona_mean": 0.9406,
+      "persona_min": 0.884,
+      "nonsense": 0.9193,
+      "gap": -0.0213
+    },
+    {
+      "layer": 13,
+      "depth": 0.5,
+      "persona_mean": 0.9162,
+      "persona_min": 0.8393,
+      "nonsense": 0.9023,
+      "gap": -0.0139
+    },
+    {
+      "layer": 14,
+      "depth": 0.538,
+      "persona_mean": 0.9483,
+      "persona_min": 0.8941,
+      "nonsense": 0.9713,
+      "gap": 0.0229
+    },
+    {
+      "layer": 15,
+      "depth": 0.577,
+      "persona_mean": 0.8804,
+      "persona_min": 0.6995,
+      "nonsense": 0.9568,
+      "gap": 0.0764
+    },
+    {
+      "layer": 16,
+      "depth": 0.615,
+      "persona_mean": 0.8699,
+      "persona_min": 0.6282,
+      "nonsense": 0.9623,
+      "gap": 0.0924
+    },
+    {
+      "layer": 17,
+      "depth": 0.654,
+      "persona_mean": 0.8363,
+      "persona_min": 0.4759,
+      "nonsense": 0.9606,
+      "gap": 0.1243
+    },
+    {
+      "layer": 18,
+      "depth": 0.692,
+      "persona_mean": 0.7753,
+      "persona_min": 0.2548,
+      "nonsense": 0.9505,
+      "gap": 0.1753
+    },
+    {
+      "layer": 19,
+      "depth": 0.731,
+      "persona_mean": 0.7133,
+      "persona_min": -0.0102,
+      "nonsense": 0.9383,
+      "gap": 0.225
+    },
+    {
+      "layer": 20,
+      "depth": 0.769,
+      "persona_mean": 0.6588,
+      "persona_min": -0.0712,
+      "nonsense": 0.9162,
+      "gap": 0.2574
+    },
+    {
+      "layer": 21,
+      "depth": 0.808,
+      "persona_mean": 0.5934,
+      "persona_min": -0.069,
+      "nonsense": 0.8822,
+      "gap": 0.2888
+    },
+    {
+      "layer": 22,
+      "depth": 0.846,
+      "persona_mean": 0.5575,
+      "persona_min": -0.0839,
+      "nonsense": 0.8571,
+      "gap": 0.2995
+    },
+    {
+      "layer": 23,
+      "depth": 0.885,
+      "persona_mean": 0.5316,
+      "persona_min": -0.1443,
+      "nonsense": 0.8335,
+      "gap": 0.3019
+    },
+    {
+      "layer": 24,
+      "depth": 0.923,
+      "persona_mean": 0.5047,
+      "persona_min": -0.1834,
+      "nonsense": 0.8211,
+      "gap": 0.3164
+    },
+    {
+      "layer": 25,
+      "depth": 0.962,
+      "persona_mean": 0.4697,
+      "persona_min": -0.1961,
+      "nonsense": 0.8055,
+      "gap": 0.3358
+    },
+    {
+      "layer": 26,
+      "depth": 1.0,
+      "persona_mean": 0.4942,
+      "persona_min": -0.2549,
+      "nonsense": 0.8306,
+      "gap": 0.3364
+    }
+  ]
+}
