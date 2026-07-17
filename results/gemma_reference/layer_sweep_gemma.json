@@ -1,0 +1,368 @@
+{
+  "model": "gemma-2-27b-it",
+  "source": "girishgupta/persona-steering-activations caa_vectors",
+  "n_layers": 45,
+  "paper_layer": 22,
+  "rows": [
+    {
+      "layer": 0,
+      "depth": 0.0,
+      "persona_mean": 0.996,
+      "persona_min": 0.989,
+      "nonsense": 0.997,
+      "gap": 0.001
+    },
+    {
+      "layer": 1,
+      "depth": 0.023,
+      "persona_mean": 0.988,
+      "persona_min": 0.961,
+      "nonsense": 0.983,
+      "gap": -0.006
+    },
+    {
+      "layer": 2,
+      "depth": 0.045,
+      "persona_mean": 0.986,
+      "persona_min": 0.929,
+      "nonsense": 0.973,
+      "gap": -0.013
+    },
+    {
+      "layer": 3,
+      "depth": 0.068,
+      "persona_mean": 0.976,
+      "persona_min": 0.939,
+      "nonsense": 0.957,
+      "gap": -0.019
+    },
+    {
+      "layer": 4,
+      "depth": 0.091,
+      "persona_mean": 0.972,
+      "persona_min": 0.928,
+      "nonsense": 0.948,
+      "gap": -0.025
+    },
+    {
+      "layer": 5,
+      "depth": 0.114,
+      "persona_mean": 0.968,
+      "persona_min": 0.868,
+      "nonsense": 0.949,
+      "gap": -0.019
+    },
+    {
+      "layer": 6,
+      "depth": 0.136,
+      "persona_mean": 0.963,
+      "persona_min": 0.914,
+      "nonsense": 0.947,
+      "gap": -0.016
+    },
+    {
+      "layer": 7,
+      "depth": 0.159,
+      "persona_mean": 0.952,
+      "persona_min": 0.884,
+      "nonsense": 0.906,
+      "gap": -0.047
+    },
+    {
+      "layer": 8,
+      "depth": 0.182,
+      "persona_mean": 0.925,
+      "persona_min": 0.847,
+      "nonsense": 0.901,
+      "gap": -0.024
+    },
+    {
+      "layer": 9,
+      "depth": 0.205,
+      "persona_mean": 0.914,
+      "persona_min": 0.75,
+      "nonsense": 0.899,
+      "gap": -0.015
+    },
+    {
+      "layer": 10,
+      "depth": 0.227,
+      "persona_mean": 0.914,
+      "persona_min": 0.8,
+      "nonsense": 0.899,
+      "gap": -0.015
+    },
+    {
+      "layer": 11,
+      "depth": 0.25,
+      "persona_mean": 0.909,
+      "persona_min": 0.802,
+      "nonsense": 0.903,
+      "gap": -0.006
+    },
+    {
+      "layer": 12,
+      "depth": 0.273,
+      "persona_mean": 0.896,
+      "persona_min": 0.712,
+      "nonsense": 0.88,
+      "gap": -0.016
+    },
+    {
+      "layer": 13,
+      "depth": 0.295,
+      "persona_mean": 0.897,
+      "persona_min": 0.614,
+      "nonsense": 0.857,
+      "gap": -0.039
+    },
+    {
+      "layer": 14,
+      "depth": 0.318,
+      "persona_mean": 0.961,
+      "persona_min": 0.866,
+      "nonsense": 0.956,
+      "gap": -0.005
+    },
+    {
+      "layer": 15,
+      "depth": 0.341,
+      "persona_mean": 0.96,
+      "persona_min": 0.89,
+      "nonsense": 0.953,
+      "gap": -0.007
+    },
+    {
+      "layer": 16,
+      "depth": 0.364,
+      "persona_mean": 0.958,
+      "persona_min": 0.899,
+      "nonsense": 0.958,
+      "gap": 0.001
+    },
+    {
+      "layer": 17,
+      "depth": 0.386,
+      "persona_mean": 0.962,
+      "persona_min": 0.898,
+      "nonsense": 0.973,
+      "gap": 0.011
+    },
+    {
+      "layer": 18,
+      "depth": 0.409,
+      "persona_mean": 0.933,
+      "persona_min": 0.771,
+      "nonsense": 0.955,
+      "gap": 0.022
+    },
+    {
+      "layer": 19,
+      "depth": 0.432,
+      "persona_mean": 0.928,
+      "persona_min": 0.727,
+      "nonsense": 0.975,
+      "gap": 0.047
+    },
+    {
+      "layer": 20,
+      "depth": 0.455,
+      "persona_mean": 0.843,
+      "persona_min": 0.4,
+      "nonsense": 0.969,
+      "gap": 0.126
+    },
+    {
+      "layer": 21,
+      "depth": 0.477,
+      "persona_mean": 0.772,
+      "persona_min": 0.164,
+      "nonsense": 0.966,
+      "gap": 0.193
+    },
+    {
+      "layer": 22,
+      "depth": 0.5,
+      "persona_mean": 0.706,
+      "persona_min": -0.096,
+      "nonsense": 0.956,
+      "gap": 0.249
+    },
+    {
+      "layer": 23,
+      "depth": 0.523,
+      "persona_mean": 0.702,
+      "persona_min": -0.112,
+      "nonsense": 0.959,
+      "gap": 0.258
+    },
+    {
+      "layer": 24,
+      "depth": 0.545,
+      "persona_mean": 0.651,
+      "persona_min": -0.266,
+      "nonsense": 0.96,
+      "gap": 0.309
+    },
+    {
+      "layer": 25,
+      "depth": 0.568,
+      "persona_mean": 0.59,
+      "persona_min": -0.388,
+      "nonsense": 0.959,
+      "gap": 0.369
+    },
+    {
+      "layer": 26,
+      "depth": 0.591,
+      "persona_mean": 0.538,
+      "persona_min": -0.428,
+      "nonsense": 0.954,
+      "gap": 0.416
+    },
+    {
+      "layer": 27,
+      "depth": 0.614,
+      "persona_mean": 0.487,
+      "persona_min": -0.484,
+      "nonsense": 0.949,
+      "gap": 0.462
+    },
+    {
+      "layer": 28,
+      "depth": 0.636,
+      "persona_mean": 0.464,
+      "persona_min": -0.432,
+      "nonsense": 0.943,
+      "gap": 0.479
+    },
+    {
+      "layer": 29,
+      "depth": 0.659,
+      "persona_mean": 0.442,
+      "persona_min": -0.478,
+      "nonsense": 0.938,
+      "gap": 0.496
+    },
+    {
+      "layer": 30,
+      "depth": 0.682,
+      "persona_mean": 0.43,
+      "persona_min": -0.487,
+      "nonsense": 0.936,
+      "gap": 0.507
+    },
+    {
+      "layer": 31,
+      "depth": 0.705,
+      "persona_mean": 0.413,
+      "persona_min": -0.502,
+      "nonsense": 0.935,
+      "gap": 0.522
+    },
+    {
+      "layer": 32,
+      "depth": 0.727,
+      "persona_mean": 0.394,
+      "persona_min": -0.519,
+      "nonsense": 0.932,
+      "gap": 0.538
+    },
+    {
+      "layer": 33,
+      "depth": 0.75,
+      "persona_mean": 0.362,
+      "persona_min": -0.536,
+      "nonsense": 0.929,
+      "gap": 0.567
+    },
+    {
+      "layer": 34,
+      "depth": 0.773,
+      "persona_mean": 0.34,
+      "persona_min": -0.56,
+      "nonsense": 0.926,
+      "gap": 0.586
+    },
+    {
+      "layer": 35,
+      "depth": 0.795,
+      "persona_mean": 0.32,
+      "persona_min": -0.578,
+      "nonsense": 0.924,
+      "gap": 0.603
+    },
+    {
+      "layer": 36,
+      "depth": 0.818,
+      "persona_mean": 0.313,
+      "persona_min": -0.556,
+      "nonsense": 0.922,
+      "gap": 0.609
+    },
+    {
+      "layer": 37,
+      "depth": 0.841,
+      "persona_mean": 0.302,
+      "persona_min": -0.576,
+      "nonsense": 0.924,
+      "gap": 0.622
+    },
+    {
+      "layer": 38,
+      "depth": 0.864,
+      "persona_mean": 0.295,
+      "persona_min": -0.574,
+      "nonsense": 0.923,
+      "gap": 0.628
+    },
+    {
+      "layer": 39,
+      "depth": 0.886,
+      "persona_mean": 0.289,
+      "persona_min": -0.585,
+      "nonsense": 0.914,
+      "gap": 0.626
+    },
+    {
+      "layer": 40,
+      "depth": 0.909,
+      "persona_mean": 0.281,
+      "persona_min": -0.605,
+      "nonsense": 0.912,
+      "gap": 0.631
+    },
+    {
+      "layer": 41,
+      "depth": 0.932,
+      "persona_mean": 0.277,
+      "persona_min": -0.595,
+      "nonsense": 0.908,
+      "gap": 0.631
+    },
+    {
+      "layer": 42,
+      "depth": 0.955,
+      "persona_mean": 0.278,
+      "persona_min": -0.555,
+      "nonsense": 0.899,
+      "gap": 0.621
+    },
+    {
+      "layer": 43,
+      "depth": 0.977,
+      "persona_mean": 0.273,
+      "persona_min": -0.547,
+      "nonsense": 0.891,
+      "gap": 0.618
+    },
+    {
+      "layer": 44,
+      "depth": 1.0,
+      "persona_mean": 0.143,
+      "persona_min": -0.348,
+      "nonsense": 0.854,
+      "gap": 0.711
+    }
+  ]
+}
