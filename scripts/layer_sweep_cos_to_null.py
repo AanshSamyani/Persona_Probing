@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,9 @@ def main() -> None:
     ap.add_argument("--vectors-dir", required=True)
     ap.add_argument("--min-floor", type=float, default=-0.15,
                     help="reject a layer as 'collapsed' if min persona cos < this (default -0.15)")
+    ap.add_argument("--save-json", default=None,
+                    help="also dump the per-layer table as JSON (for plot_layer_comparison.py)")
+    ap.add_argument("--model-name", default="model", help="label stored in the JSON")
     args = ap.parse_args()
     vd = Path(args.vectors_dir)
 
@@ -60,6 +64,7 @@ def main() -> None:
     print(f"{n_layers} layers.  gap = nonsense - persona (want large, with min not < {args.min_floor})")
     print(f"{'layer':>5} {'pers_mean':>9} {'pers_min':>8} {'nonsense':>9} {'gap':>7}")
     best = (-1.0, None)  # (gap, layer) among non-collapsed layers
+    rows = []
     for L in range(n_layers):
         pvals, nvals = [], []
         for t in TRAITS:
@@ -82,6 +87,16 @@ def main() -> None:
         if mn < args.min_floor:
             flag = "  (collapsed: sign-flips)"
         print(f"{L:5d} {pm:9.3f} {mn:8.3f} {nm:9.3f} {gap:+7.3f}{flag}")
+        rows.append({"layer": L, "depth": round(L / (n_layers - 1), 3),
+                     "persona_mean": round(pm, 4), "persona_min": round(mn, 4),
+                     "nonsense": None if np.isnan(nm) else round(nm, 4),
+                     "gap": None if np.isnan(gap) else round(gap, 4)})
+
+    if args.save_json:
+        Path(args.save_json).parent.mkdir(parents=True, exist_ok=True)
+        json.dump({"model": args.model_name, "n_layers": n_layers, "rows": rows},
+                  open(args.save_json, "w"), indent=2)
+        print(f"\nwrote {args.save_json}")
 
     if best[1] is not None:
         print(f"\n>>> best usable layer: {best[1]}  (gap {best[0]:+.3f}, min persona cos >= {args.min_floor})"
