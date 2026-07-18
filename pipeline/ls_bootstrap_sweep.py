@@ -22,15 +22,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
 import torch
 
-from persona_steering.utils import discover_activation_pairs
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))                       # so `persona_steering` imports without pip install -e .
+
+from persona_steering.utils import discover_activation_pairs
 PERSONAS = ["farmer", "politician", "therapist", "drill_sergeant", "street_hustler",
             "professor", "tech_ceo", "kindergarten_teacher", "surgeon", "con_artist"]
 

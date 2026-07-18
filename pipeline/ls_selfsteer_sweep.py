@@ -48,6 +48,7 @@ import numpy as np
 import torch
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT))                       # so `persona_steering` imports without pip install -e .
 sys.path.insert(0, str(REPO_ROOT / "assistant-axis-ref"))
 
 from persona_steering.config import Trait
